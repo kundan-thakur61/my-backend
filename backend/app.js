@@ -70,6 +70,30 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/collections', collectionRoutes);
 
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Mobile Cover E-commerce API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      products: '/api/products',
+      orders: '/api/orders',
+      custom: '/api/custom',
+      customDesigns: '/api/custom-designs',
+      uploads: '/api/uploads',
+      wishlist: '/api/wishlist',
+      mobile: '/api/mobile',
+      collections: '/api/collections',
+      admin: '/api/admin',
+      webhooks: '/api/webhooks'
+    },
+    documentation: 'See README.md for API documentation'
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 

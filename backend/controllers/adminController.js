@@ -91,10 +91,10 @@ const getDashboardOverview = async (req, res, next) => {
       CustomOrder.countDocuments({ status: 'pending' }),
       Order.aggregate([
         { $group: { _id: null, totalRevenue: { $sum: numberField('$total') } } }
-      ]),
+      ]).option({ allowDiskUse: true }),
       CustomOrder.aggregate([
         { $group: { _id: null, totalRevenue: { $sum: numberField('$price') } } }
-      ]),
+      ]).option({ allowDiskUse: true }),
       Order.aggregate([
         { $match: { createdAt: { $gte: last7Days } } },
         {
@@ -105,7 +105,7 @@ const getDashboardOverview = async (req, res, next) => {
           }
         },
         { $sort: { _id: 1 } }
-      ]),
+      ]).option({ allowDiskUse: true }),
       Order.aggregate([
         { $unwind: '$items' },
         {
@@ -119,13 +119,15 @@ const getDashboardOverview = async (req, res, next) => {
         },
         { $sort: { totalQuantity: -1 } },
         { $limit: 5 }
-      ]),
+      ]).option({ allowDiskUse: true }),
       Order.find({})
+        .setOptions({ allowDiskUse: true })
         .sort({ createdAt: -1 })
         .limit(5)
         .select('total status createdAt shippingAddress payment userId')
         .populate('userId', 'name email'),
       CustomOrder.find({})
+        .setOptions({ allowDiskUse: true })
         .sort({ createdAt: -1 })
         .limit(5)
         .select('price status createdAt shippingAddress userId productId')

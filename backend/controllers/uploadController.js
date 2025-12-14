@@ -2,8 +2,10 @@
 const multer = require('multer');
 const path = require('path');
 const { uploadFromBuffer, uploadFromBase64, deleteImage } = require('../utils/cloudinary');
-const { uploadsDir } = require('../config/uploadsPath');
+const { resolveUploadsDir } = require('../utils/uploadsDir');
 const Product = require('../models/Product');
+
+const uploadsDir = resolveUploadsDir();
 
 /**
  * Multer configuration

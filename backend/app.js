@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -22,6 +23,7 @@ const mobileRoutes = require('./routes/mobile');
 const collectionRoutes = require('./routes/collections');
 
 const app = express();
+const frontendBuildPath = path.join(__dirname, '../frontend/dist');
 
 // Render and other managed hosts sit behind a proxy and forward client IPs
 // via X-Forwarded-* headers. Enabling trust proxy ensures downstream
@@ -124,6 +126,20 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// Serve the built React app for any non-API route
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    return res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+} else {
+  logger.warn(`Frontend build not found at ${frontendBuildPath}. Skipping static serve.`);
+}
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

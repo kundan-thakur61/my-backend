@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { generalLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { uploadsDir } = require('./config/uploadsPath');
 
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
@@ -32,7 +33,16 @@ const frontendBuildPath = path.join(__dirname, '../frontend/dist');
 app.set('trust proxy', 1);
 
 // Serve static files for uploads (accessible via both /uploads and /api/uploads for dev proxying)
-app.use(['/uploads', '/api/uploads'], express.static(path.join(__dirname, 'public/uploads')));
+const defaultUploadsPath = path.join(__dirname, 'public/uploads');
+const uploadStaticDirs = [uploadsDir];
+if (path.resolve(uploadsDir) !== path.resolve(defaultUploadsPath)) {
+  uploadStaticDirs.push(defaultUploadsPath);
+}
+uploadStaticDirs.forEach((dir) => {
+  if (fs.existsSync(dir)) {
+    app.use(['/uploads', '/api/uploads'], express.static(dir));
+  }
+});
 
 // Security middleware
 app.use(helmet({

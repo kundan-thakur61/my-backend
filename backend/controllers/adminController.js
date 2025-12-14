@@ -28,6 +28,32 @@ const formatCustomOrderSummary = (order) => ({
   createdAt: order.createdAt
 });
 
+const numberField = (fieldPath) => ({
+  $let: {
+    vars: { value: fieldPath },
+    in: {
+      $cond: [
+        { $in: [{ $type: '$$value' }, ['int', 'long', 'double', 'decimal']] },
+        '$$value',
+        {
+          $cond: [
+            { $eq: [{ $type: '$$value' }, 'string'] },
+            {
+              $convert: {
+                input: '$$value',
+                to: 'double',
+                onError: 0,
+                onNull: 0
+              }
+            },
+            0
+          ]
+        }
+      ]
+    }
+  }
+});
+
 /**
  * GET /api/admin/overview
  * Aggregated metrics for the admin dashboard
@@ -64,17 +90,17 @@ const getDashboardOverview = async (req, res, next) => {
       CustomOrder.countDocuments(),
       CustomOrder.countDocuments({ status: 'pending' }),
       Order.aggregate([
-        { $group: { _id: null, totalRevenue: { $sum: '$total' } } }
+        { $group: { _id: null, totalRevenue: { $sum: numberField('$total') } } }
       ]),
       CustomOrder.aggregate([
-        { $group: { _id: null, totalRevenue: { $sum: '$price' } } }
+        { $group: { _id: null, totalRevenue: { $sum: numberField('$price') } } }
       ]),
       Order.aggregate([
         { $match: { createdAt: { $gte: last7Days } } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            revenue: { $sum: '$total' },
+            revenue: { $sum: numberField('$total') },
             orders: { $sum: 1 }
           }
         },
@@ -87,8 +113,8 @@ const getDashboardOverview = async (req, res, next) => {
             _id: '$items.productId',
             title: { $first: '$items.title' },
             model: { $first: '$items.model' },
-            totalQuantity: { $sum: '$items.quantity' },
-            totalSales: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+            totalQuantity: { $sum: numberField('$items.quantity') },
+            totalSales: { $sum: { $multiply: [numberField('$items.quantity'), numberField('$items.price')] } }
           }
         },
         { $sort: { totalQuantity: -1 } },

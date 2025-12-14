@@ -23,6 +23,12 @@ const collectionRoutes = require('./routes/collections');
 
 const app = express();
 
+// Render and other managed hosts sit behind a proxy and forward client IPs
+// via X-Forwarded-* headers. Enabling trust proxy ensures downstream
+// middleware such as express-rate-limit reads the correct IP instead of
+// throwing validation errors when those headers are present.
+app.set('trust proxy', 1);
+
 // Serve static files for uploads (accessible via both /uploads and /api/uploads for dev proxying)
 app.use(['/uploads', '/api/uploads'], express.static(path.join(__dirname, 'public/uploads')));
 

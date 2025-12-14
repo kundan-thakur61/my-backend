@@ -1,14 +1,55 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { generalLimiter, authLimiter } = require('./middleware/rateLimiter');
-const { uploadsDir } = require('./config/uploadsPath');
 
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
+
+const defaultUploadsPath = path.join(__dirname, 'public/uploads');
+
+const computeUploadsDir = () => {
+  const envUploadsDir = process.env.UPLOADS_DIR ? path.resolve(process.env.UPLOADS_DIR) : null;
+  const candidateDirs = [envUploadsDir, defaultUploadsPath].filter(Boolean);
+
+  for (const dir of candidateDirs) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.accessSync(dir, fs.constants.W_OK);
+      return dir;
+    } catch (dirError) {
+      logger.warn(`Uploads directory ${dir} is not writable. Falling back.`, { error: dirError.message });
+    }
+  }
+
+  const fallbackDir = path.join(os.tmpdir(), 'copadmob-uploads');
+  fs.mkdirSync(fallbackDir, { recursive: true });
+  logger.warn(`Using temporary uploads directory at ${fallbackDir}. Files will not persist across deploys.`);
+  return fallbackDir;
+};
+
+const resolveUploadsDir = () => {
+  try {
+    const { uploadsDir: configuredUploadsDir } = require('./config/uploadsPath');
+    if (configuredUploadsDir) {
+      return configuredUploadsDir;
+    }
+    logger.warn('config/uploadsPath.js returned an empty uploadsDir. Falling back to default resolver.');
+    return computeUploadsDir();
+  } catch (error) {
+    if (error.code !== 'MODULE_NOT_FOUND') {
+      throw error;
+    }
+    logger.warn('config/uploadsPath.js not found. Using default resolver for uploads directory.');
+    return computeUploadsDir();
+  }
+};
+
+const uploadsDir = resolveUploadsDir();
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -33,7 +74,6 @@ const frontendBuildPath = path.join(__dirname, '../frontend/dist');
 app.set('trust proxy', 1);
 
 // Serve static files for uploads (accessible via both /uploads and /api/uploads for dev proxying)
-const defaultUploadsPath = path.join(__dirname, 'public/uploads');
 const uploadStaticDirs = [uploadsDir];
 if (path.resolve(uploadsDir) !== path.resolve(defaultUploadsPath)) {
   uploadStaticDirs.push(defaultUploadsPath);
